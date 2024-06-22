@@ -2,16 +2,6 @@
 <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
 <Document>
 	<name>CurvePrasert.kml</name>
-	<StyleMap id="m_ylw-pushpin">
-		<Pair>
-			<key>normal</key>
-			<styleUrl>#s_ylw-pushpin0</styleUrl>
-		</Pair>
-		<Pair>
-			<key>highlight</key>
-			<styleUrl>#s_ylw-pushpin_hl0</styleUrl>
-		</Pair>
-	</StyleMap>
 	<StyleMap id="m_ylw-pushpin3">
 		<Pair>
 			<key>normal</key>
@@ -22,15 +12,16 @@
 			<styleUrl>#s_ylw-pushpin_hl</styleUrl>
 		</Pair>
 	</StyleMap>
-	<Style id="s_ylw-pushpin0">
-		<IconStyle>
-			<scale>1.1</scale>
-			<Icon>
-				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
-			</Icon>
-			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
-		</IconStyle>
-	</Style>
+	<StyleMap id="m_ylw-pushpin30">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin10</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl0</styleUrl>
+		</Pair>
+	</StyleMap>
 	<Style id="s_ylw-pushpin1">
 		<IconStyle>
 			<scale>1.1</scale>
@@ -39,6 +30,23 @@
 			</Icon>
 			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
 		</IconStyle>
+		<LineStyle>
+			<color>bf0000ff</color>
+			<width>20</width>
+		</LineStyle>
+	</Style>
+	<Style id="s_ylw-pushpin10">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+		<LineStyle>
+			<color>bf0000ff</color>
+			<width>20</width>
+		</LineStyle>
 	</Style>
 	<Style id="s_ylw-pushpin_hl">
 		<IconStyle>
@@ -48,6 +56,10 @@
 			</Icon>
 			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
 		</IconStyle>
+		<LineStyle>
+			<color>bf0000ff</color>
+			<width>20</width>
+		</LineStyle>
 	</Style>
 	<Style id="s_ylw-pushpin_hl0">
 		<IconStyle>
@@ -57,6 +69,10 @@
 			</Icon>
 			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
 		</IconStyle>
+		<LineStyle>
+			<color>bf0000ff</color>
+			<width>20</width>
+		</LineStyle>
 	</Style>
 	<Folder>
 		<name>CurvePrasert</name>
@@ -103,7 +119,7 @@
 		</Placemark>
 		<Placemark>
 			<name>North_big</name>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin3</styleUrl>
 			<LineString>
 				<tessellate>1</tessellate>
 				<coordinates>
@@ -113,7 +129,7 @@
 		</Placemark>
 		<Placemark>
 			<name>South_big</name>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin3</styleUrl>
 			<LineString>
 				<tessellate>1</tessellate>
 				<coordinates>
@@ -123,17 +139,18 @@
 		</Placemark>
 		<Placemark>
 			<name>Round_North</name>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<styleUrl>#m_ylw-pushpin30</styleUrl>
 			<LineString>
 				<tessellate>1</tessellate>
 				<coordinates>
-					100.6765929097998,13.81387264487085,0 100.6765365628286,13.81393457472827,0 100.6765090094361,13.81399396040353,0 100.6765039946522,13.81404242600268,0 100.6765077771374,13.81407264441618,0 100.6765371081927,13.81412098718035,0 100.6765979257866,13.81416103535856,0 100.6766514987005,13.81416620253121,0 100.6767026664605,13.81415269513515,0 100.6767451000218,13.81412106900896,0 100.6767614004809,13.81407625088643,0 100.6767764514529,13.81401805796916,0 100.6767864266292,13.8139707055745,0 100.6767914435017,13.81391610437624,0 
+					100.6765929097998,13.81387264487085,0 100.6765365628286,13.81393457472827,0 100.6765090094361,13.81399396040353,0 100.6765039946522,13.81404242600268,0 100.6765077771374,13.81407264441618,0 100.6765143601734,13.81408832024933,0 100.6765246060858,13.81410051574143,0 100.6765381398147,13.81411736775008,0 100.6765510311043,13.81412987177921,0 100.6765617319682,13.81413769594026,0 100.6765761333272,13.81414603757615,0 100.6766098291276,13.81415798337905,0 100.6766390516074,13.81416258412055,0 100.6766768859959,13.81415850591044,0 100.6766777453174,13.81415850429932,0 100.6767041767887,13.81414958819969,0 100.6767266737015,13.81413063191913,0 100.6767437593546,13.81411004520998,0 100.6767522747942,13.81409072833293,0 100.6767598720072,13.81407254156999,0 100.6767662221653,13.81405672163054,0 100.6767755640129,13.8140285296282,0 100.6767797729801,13.81400744521975,0 100.6767879263572,13.81396693800723,0 100.6767931315974,13.81394027171499,0 
 				</coordinates>
 			</LineString>
 		</Placemark>
 		<Placemark>
 			<name>Round_South</name>
-			<styleUrl>#m_ylw-pushpin</styleUrl>
+			<visibility>0</visibility>
+			<styleUrl>#m_ylw-pushpin3</styleUrl>
 			<LineString>
 				<tessellate>1</tessellate>
 				<coordinates>

@@ -1,12 +1,11 @@
 #
 #
-PROG='''
- CurvePnts.py : Generate points on a designated curve/n 
-                from its 3-point alignment\n
- Author : Phisan Santitamnont ( phisan.chula@gmail.com )\n
- History  25 Dec 2022 : version 0.1\n 
-          18 Jun 2024 : version 0.5\n
-'''
+PROG="""\
+ CurvePnts.py : Generate points on a designated curve from its 3-point alignment.
+ Author : Phisan Santitamnont ( phisan.chula@gmail.com )
+ History  25 Dec 2022 : version 0.1
+          18 Jun 2024 : version 0.5
+"""
 import sys 
 import numpy as np 
 import pandas as pd
@@ -20,12 +19,12 @@ from pygeodesy import dms
 
 #####################################################################################
 class CircularCurve:
-    def __init__(self,EPSG, ALIGN, RADIUS, DIV ):
+    def __init__(self, EPSG, ALIGN, RADIUS, DIV, ROUND_ABOUT=False ):
         self.CACHE = Path( './CACHE' )
         self.CACHE.mkdir(parents=True, exist_ok=True)
-        self.GPKG = self.CACHE.joinpath('Plot_Curve.gpkg')
-        PAR = pd.Series( {'EPSG':EPSG, 'ALIGN' : ALIGN, 'RADIUS' : RADIUS, 'DIV': DIV } )
-        print(PAR)
+        self.PLOT = self.CACHE.joinpath('Plot_Curve')
+        PAR = pd.Series( {'EPSG':EPSG, 'ALIGN' : ALIGN, 'RADIUS' : RADIUS, 
+                              'DIV': DIV, 'ROUND_ABOUT': ROUND_ABOUT } )
         assert( len(PAR.ALIGN.coords) ==3 ),'***ERROR*** limit 3 points on LS_ALIGN'
         pc,pi,pt = list(ALIGN.coords)
         vcPC = Vector.from_points( pc,pi )
@@ -57,17 +56,18 @@ class CircularCurve:
         assert( pi_pc>=PAR.TL  ),'***ERROR** leadin PC too shore!'
         pi_pt = LineString( [pi,pt] ).length
         assert( pi_pt>=PAR.TL ),'***ERROR** leadout PT too shore!'
-        print( f'Tangential Dist  : {PAR.TL:.3f} m.' )
-        print( f'Point On Curve   : {PAR.LENCUR:.3f} m.' )
+        #import pdb ;pdb.set_trace()
+        if PAR.ROUND_ABOUT:
+            PAR.LENCUR = 2*np.pi*PAR.RADIUS - PAR.LENCUR
         ndiv,rest = divmod(PAR.LENCUR, PAR.DIV)
         pnt_div = np.linspace(rest/2,PAR.LENCUR-rest/2,num=int(ndiv)+1,endpoint=True )
         pnts = np.concatenate( [np.array([0]), pnt_div, np.array([PAR.LENCUR]) ] )
         dfPNT = pd.DataFrame( pnts, columns=['cvDist'] )
         def DoCurve(row, PAR):
             theta = row.cvDist/PAR.RADIUS
-            #print( f'theta = {np.degrees(theta)} ... ')
             x,y = PAR.RADIUS*np.sin(theta),PAR.RADIUS*np.cos(theta)
-            if PAR.sgDEFL<0.: y=-y
+            if PAR.sgDEFL<0.   : y=-y
+            if PAR.ROUND_ABOUT : x=-x
             return [ f'{row.cvDist:03.0f}', f'{row.cvDist:.3f}', Point(x,y) ]
         dfPNT[['Name','cvDist', 'geometry']] = dfPNT.apply( DoCurve, 
                                   axis=1, result_type='expand', args=(PAR,) )
@@ -95,7 +95,7 @@ class CircularCurve:
         PAR['ORIGIN'] = rotate( Point( dx,dy),sgRot, origin=(PAR.PC.x,PAR.PC.y), use_radians=True ) 
         PAR['MO']  = LineString( [PAR.ORIGIN,PAR.PI] ).interpolate(PAR.RADIUS,normalized=False )
 
-    def DoPlot(self):
+    def DoPlot(self, SUFFIX=None ):
         fig, ax = plt.subplots( figsize=(20,18))
         self.dfLS.plot( ax=ax ) 
         for i,row in self.gdfPNT.iterrows():
@@ -106,8 +106,7 @@ class CircularCurve:
             geom = self.PAR[pnt]
             ax.scatter( geom.x, geom.y, c='r', s=50 )
             ax.text( geom.x,geom.y, s=pnt, c='r', fontsize=20 )
-        #import pdb; pdb.set_trace()
-        C_DATA = f'R = {self.PAR.RADIUS} m.\n\u03B4 = {self.PAR.DEFLdms}\n'\
+        C_DATA = f'R = {self.PAR.RADIUS:.3f} m.\n\u03B4 = {self.PAR.DEFLdms}\n'\
                  f'LEN = {self.PAR.LENCUR:.3f} m.\nTangential (T) = {self.PAR.TL:.3f} m\n'\
                  f'Division: {self.PAR.DIV} m.'
         om = LineString([self.PAR.MO,self.PAR.ORIGIN]).centroid
@@ -117,14 +116,17 @@ class CircularCurve:
         plt.gca().set_aspect('equal')
         plt.grid()
         print(f'CircularCurve:DoPlot() Writing result "pdf|png" into ./{self.CACHE}/...')
-        plt.savefig( self.CACHE.joinpath( 'PLOT_CURVE.png' ) )
-        plt.savefig( self.CACHE.joinpath( 'PLOT_CURVE.pdf' ) )
+        if SUFFIX is None: PLT = self.PLOT 
+        else: PLT = f'{self.PLOT}_{SUFFIX}'
+        plt.savefig( f'{PLT}.png' )
+        plt.savefig( f'{PLT}.pdf' )
 
-    def WriteGIS( self ):
+    def WriteGIS( self, SUFFIX=None ):
         print(f'CircularCurve:WriteGIS() "csv|gpkg" into ./{self.CACHE}/...')
-        #import pdb; pdb.set_trace()
-        self.gdfPNT.to_file( self.GPKG, driver='GPKG', layer='CurveLoci' ) 
-        self.dfLS.to_file( self.GPKG, driver='GPKG', layer='Elements' ) 
+        if SUFFIX is None: PLT = f'{self.PLOT}.gpkg' 
+        else: PLT = f'{self.PLOT}_{SUFFIX}.gpkg' 
+        self.gdfPNT.to_file( PLT , driver='GPKG', layer='CurveLoci' ) 
+        self.dfLS.to_file( PLT, driver='GPKG', layer='Elements' ) 
 
 ###############################################################################
 class CLI_CircCurve(CircularCurve):
@@ -143,7 +145,7 @@ class CLI_CircCurve(CircularCurve):
 ###############################################################################
 ###############################################################################
 if __name__ == "__main__":
-    USAGE = '''python3 CurvePnts.py -a [542939.592,1560557.148],[543219.123,1560612.552],[543408.493,1560534.688] -r 200 -d 20'''
+    USAGE = '''python3 CurvePnts.py -a [542939.592,1560557.148],[543219.123,1560612.552],[543408.493,1560534.688] -r 300 -d 20'''
     ###############################################################################
     ###############################################################################
     ###############################################################################
@@ -160,7 +162,8 @@ if __name__ == "__main__":
         args = { 'CURVE': CURVE , 'RADIUS':500 , 'DIV':10 }
     else:
         import argparse
-        parser = argparse.ArgumentParser(description=PROG, usage=USAGE )
+        parser = argparse.ArgumentParser(description=PROG, usage=USAGE, 
+                                        formatter_class=argparse.RawTextHelpFormatter )
         parser.add_argument( '-a','--align', action='store',             
                     help='3-point of alignment "[E,N],[E,N],[E,N]" for circular curve design' )
         parser.add_argument( '-r','--radius', action='store',type=float,
@@ -172,6 +175,6 @@ if __name__ == "__main__":
     cc = CLI_CircCurve( args )
     cc.DoPlot( )
     print( cc.gdfPNT )
-    cc.WriteCurve()
+    cc.WriteGIS()
     print('@@@@@@@@@@@@@@@@@ end of  CurvePnt @@@@@@@@@@@@@@@@@@@@')
     #import pdb; pdb.set_trace()
