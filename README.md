@@ -20,7 +20,8 @@ Provides a reliable method for extracting circular curve information from road c
 Improves the accuracy of curve fitting in scenarios with potential measurement errors or deviations.
 
 
-# Author : June,2024 Phisan Santitamnont ( phisan.chula@gmail.com ; phisan.s@cdg.co.th )
+Author : Phisan Santitamnont ( phisan.chula@gmail.com ; phisan.s@cdg.co.th )  
+         June,2024 
 
 ![REVERSE_CURVE](https://github.com/phisan-chula/CircularCurve/blob/main/Round_Abouts.png)
 
