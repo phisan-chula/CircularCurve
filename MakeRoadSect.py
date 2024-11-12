@@ -1,11 +1,17 @@
 #
 # MakeRoadSection.py : RoadSection reads alignment of MMS pathway and generate polygon of 
 #               1-km (default) sections. The section will be buffered BUF meter to both-side. 
-#               Polygon of section will be use for partitioning point-cloud and images into smaller chunks
+#               Polygon of section will be use for partitioning point-cloud and images 
+#               into smaller chunks
 #
+import argparse
+import tomllib
+import shutil
+import pyogrio
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+from sklearn.cluster import DBSCAN
 from shapely import to_wkt
 from shapely.geometry import LineString
 from shapely.ops import substring
@@ -13,8 +19,7 @@ from pathlib import Path
 from simplekml import Kml, Style 
 from simplekml import Polygon as kmlPoly
 from itertools import cycle
-import shutil
-import pyogrio
+from pathlib import Path
 gpd.options.io_engine = "pyogrio"
 
 class Section:
@@ -55,52 +60,77 @@ class Section:
         for i in range( len(self.dfSTA)-1 ):
             fr  = self.dfSTA.iloc[i  ]
             to  = self.dfSTA.iloc[i+1]
+            buf = self.DATA.BUFFER
             sect = substring( self.LS, fr.ls_dist, to.ls_dist , normalized=False)
-            box  = sect.buffer( 30, cap_style='flat' )         
-            tiles.append( [ fr.Name, to.Name, box  ] )
-        df = pd.DataFrame( tiles, columns=[ 'BEG','END' ,'geometry' ] )      
+            geom  = sect.buffer( buf, cap_style='flat' )         
+            tiles.append( [ fr.Name, to.Name, buf, geom  ] )
+        df = pd.DataFrame( tiles, columns=[ 'BEG','END', 'buffer' ,'geometry' ] )      
         gdf = gpd.GeoDataFrame( df, crs=self.DATA.EPSG, geometry=df.geometry )
         return gdf
 
 class MMS_Route:
-    def __init__(self):
+    def __init__(self, DATA):
+        self.DATA = DATA
         self.CACHE = Path('./CACHE')
-        if not self.CACHE.exists():
-            self.CACHE.mkdir( parents=True, exist_ok=True)
-        DATA = pd.Series( { 'INSTRU':'M2X_1', 'ACQ_DATE':'20240621', 'DIV': 1000,  
-            'ROUTE_NAME': 'DOH_351_PS_MANOO', 'CL_KML': 'DOH_351_CL.kml' , 'START_SECT' : 9_300 } )
-        gdf = pyogrio.read_dataframe( DATA.CL_KML )
+        self.REP_DIR =  f'{self.CACHE}/{self.DATA.INSTRU}_{self.DATA.ACQ_DATE}'
+        self.CACHE.mkdir( parents=True, exist_ok=True)
+        Path( self.REP_DIR).parent.mkdir(parents=True, exist_ok=True)
+
+        gdfCL = self.ReadKML_Valid()
+
         route = list()
-        for i in range(len(gdf)):
-            if not isinstance( gdf.iloc[i].geometry, LineString ):
-                print( gdf ); raise '***ERROR*** must be LineString'
-            DATA['EPSG'] = gdf.estimate_utm_crs() # utm
-            gdf = gdf.to_crs( DATA.EPSG )
-            LS =  gdf.iloc[i].geometry   # current center line 
+        for i in range(len(gdfCL)):
+            if not isinstance( gdfCL.iloc[i].geometry, LineString ):
+                print( gdfCL ); raise '***ERROR*** must be LineString'
+            LS =  gdfCL.iloc[i].geometry   # current center line 
             LS = LineString([(x, y) for x, y, z in LS.coords])
             sect = Section( DATA,LS )  #  generate
-            #import pdb ; pdb.set_trace()
-            data = {'NAME': gdf.iloc[i]['Name'] ,'LS': LS, 'STA':sect.dfSTA, 'STA100':sect.dfSTA100,
+            data = {'NAME': gdfCL.iloc[i]['Name'] ,'LS': LS, 'STA':sect.dfSTA, 'STA100':sect.dfSTA100,
                      'TILE': sect.dfTILE }
             route.append(data)
         self.dfROUTE = pd.DataFrame( route )
-        self.DATA = DATA
+        for rt,row in self.dfROUTE.iterrows():
+            print( f'{30*"="} route : "{row.NAME}" {30*"="}')
+            print( row.STA )
+    
+    def ReadKML_Valid(self):
+        gdfCL = pyogrio.read_dataframe( self.DATA.CL_KML )
+        self.DATA['EPSG'] = gdfCL.estimate_utm_crs() # auto utm
+        gdfCL = gdfCL.to_crs( self.DATA.EPSG )
+        gdfCL['Length'] = gdfCL.length
+        print( '============ KML of MMS runs ============')
+        print( gdfCL )
+        print( 'KML: must have Name = { FWD | REV } and LINESTRING().....***')
+        print( f'KML: lengths std = {gdfCL.Length.std():.1f} m')
+        if 'LS_FLIP' in self.DATA.keys(): 
+            for route in self.DATA.LS_FLIP:
+                print( f'Found LS_FLIP , flipping "{route}" ...' )
+                idx = gdfCL[gdfCL.Name==route].index[0]
+                flipLS = gdfCL[gdfCL.Name==route].iloc[0].geometry.reverse()
+                gdfCL.at[ idx,'geometry'] = flipLS
+        begs=list();ends=list()
+        for i in range( len(gdfCL) ):
+            begs.append( gdfCL.iloc[i].geometry.coords[0] )
+            ends.append( gdfCL.iloc[i].geometry.coords[-1] )
+        clust_beg = DBSCAN( eps=200, min_samples=2).fit( np.array(begs) )
+        clust_end = DBSCAN( eps=200, min_samples=2).fit( np.array(ends) )
+        print(  'Check if begin/end nodes are clustered!...')
+        print( f'Check begin nodes are clustered : {np.all(clust_beg.labels_==0)}...')
+        print( f'Check end   nodes are clustered : {np.all(clust_end.labels_==0)}...')
+        return gdfCL
 
     def PlotKML( self ):
         kml = Kml(name="Sections for MMS Routes", visibility=1 )
-
         STA = Style()
         STA.labelstyle.scale = 1  # Text twice as big
         STA.labelstyle.color = 'ff0000ff' 
         STA.iconstyle.color = 'ff0000ff'  
         STA.iconstyle.scale = 1  # Icon thrice as big
         STA.iconstyle.icon.href = 'http://maps.google.com/mapfiles/kml/shapes/flag.png'
-
         STA100 = Style()
         STA100.labelstyle.scale = 0.5  # Text twice as big
         STA100.iconstyle.scale  = 0.5  # Icon thrice as big
         STA100.iconstyle.icon.href = 'https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png'
-
         colors = [ "ff0000ff", "ff00ff00", "ffff0000", "ffffff00", "ffff00ff"]
         POLY_CYC = list()
         for i in range( 5 ):
@@ -130,22 +160,19 @@ class MMS_Route:
             for i,rw in sta100.iterrows():
                 pnt = fol_sta100.newpoint( name=rw['Name'], coords=[(rw.geometry.x,rw.geometry.y)] )
                 pnt.style = STA100
+        MMS_Sections = Path( self.REP_DIR ) / 'ROUTE_SECTIONS.kml' 
+        print( f'Plotting {MMS_Sections} ...' )
+        kml.save( MMS_Sections )
 
-        self.TILE_KML =  f'{self.CACHE}/{self.DATA.ACQ_DATE}/{self.DATA.ROUTE_NAME}.kml'
-        Path(self.TILE_KML).parent.mkdir(parents=True, exist_ok=True)
-        print( f'Plotting {self.TILE_KML} ...' )
-        kml.save( self.TILE_KML )
-
-    def MakeFileStruct(self,INSTRU=None):
-        if INSTRU:
-            self.DATA['INSTRU'] = INSTRU  # override !
+    def MakeFileStruct(self):
         def epsg_fn():
             return f'EPSG_{self.DATA.EPSG.to_epsg()}'
-        REP_DIR =  f'{self.CACHE}/{self.DATA.INSTRU}_{self.DATA.ACQ_DATE}'
+        REP_DIR = self.REP_DIR
         Path(REP_DIR).mkdir(parents=True, exist_ok=True)
         for rep in ['Trajectory.out', 'Trajectory.csv', 'Trajectory.trj', 'MMS_MissionReport.pdf' ]:
             (Path(REP_DIR) / rep ).touch()
-        shutil.copy( Path(self.TILE_KML) , Path( f'{REP_DIR}/{Path(self.TILE_KML).name}' )  )
+        #shutil.copy( Path(self.TILE_KML) , Path( f'{REP_DIR}/{Path(self.TILE_KML).name}' )  )
+        shutil.copy( self.DATA.CL_KML , Path( f'{REP_DIR}/{self.DATA.CL_KML}' )  )
 
         PNC_DIR =  f'{self.CACHE}/{self.DATA.INSTRU}_{self.DATA.ACQ_DATE}/PntCloud'
         Path(PNC_DIR).mkdir(parents=True, exist_ok=True)
@@ -179,11 +206,19 @@ class MMS_Route:
                     PANO_CNT += 1
 
 ###############################################################################
-mms =  MMS_Route()
-mms.PlotKML()
-for instr in ['MX9','AU20','M2X']:
-    mms.MakeFileStruct(instr)
-    pass
-print('************ end of RoadTile *************' ) 
-#import pdb ; pdb.set_trace()
+if __name__=="__main__":
+    parser = argparse.ArgumentParser(
+            description="Make MMS sections every 1-km, output CACHCE/* structure. ")
+    parser.add_argument("toml", help="specified TOML file, KML file define fwd/rev MMS routes" )
+    args = parser.parse_args()
 
+    toml_file = Path( args.toml )
+    with open( toml_file ,'rb' ) as f:
+        #import pdb ; pdb.set_trace()
+        TOML = pd.Series( tomllib.load(f) )
+        TOML['CL_KML'] = toml_file.with_suffix('.kml')
+    mms =  MMS_Route( TOML )
+    mms.MakeFileStruct()
+    mms.PlotKML()
+    print('************ end of RoadTile *************' ) 
+    #import pdb ; pdb.set_trace()
