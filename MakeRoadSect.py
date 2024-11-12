@@ -131,16 +131,17 @@ class MMS_Route:
         STA100.labelstyle.scale = 0.5  # Text twice as big
         STA100.iconstyle.scale  = 0.5  # Icon thrice as big
         STA100.iconstyle.icon.href = 'https://maps.google.com/mapfiles/kml/shapes/placemark_circle.png'
-        colors = [ "ff0000ff", "ff00ff00", "ffff0000", "ffffff00", "ffff00ff"]
-        POLY_CYC = list()
-        for i in range( 5 ):
+        colors = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a']
+        poly_cyc = list()
+        for i in range( len(colors) ):
             POLY = Style()
             POLY.linestyle.color = colors[i]
-            POLY.polystyle.color = f'32{colors[i][2:]}'  # opacity 50%
+            POLY.polystyle.color = colors[i].replace('#','B2')  # opacity 50%
             POLY.polystyle.fill = 1  
             POLY.polystyle.outline = 1 
-            POLY_CYC.append( POLY )
-        POLY_CYC = cycle( POLY_CYC)
+            poly_cyc.append( POLY )
+        #import pdb ; pdb.set_trace()
+        POLY_CYC = cycle(poly_cyc)
 
         for i,row in self.dfROUTE.iterrows():
             fold_name = kml.newfolder( name=row['NAME'])
